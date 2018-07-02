@@ -91,6 +91,14 @@ def _change_bgp_session_status(ipaddr_or_hostname, status, verbose):
     for ip_addr in ip_addrs:
         _change_bgp_session_status_by_addr(ip_addr, status, verbose)
 
+def _config_bgp_asn(asnum):
+    if asnum < 1 or asnum > 65535:
+        click.echo("Wrong asnum, must be 1-65535")
+    else:
+        config_db = ConfigDBConnector()
+        config_db.connect()
+        config_db.mod_entry('DEVICE_METADATA', "bgp_asn", asnum)
+
 def _change_hostname(hostname):
     current_hostname = os.uname()[1]
     if current_hostname != hostname:
@@ -431,6 +439,12 @@ def all(verbose):
 def neighbor(ipaddr_or_hostname, verbose):
     """Start up BGP session by neighbor IP address or hostname"""
     _change_bgp_session_status(ipaddr_or_hostname, 'up', verbose)
+
+@bgp.group()
+@click.argument('asnum', type=int, required=True, help="AS number")
+def asn(asnum):
+    """Config BGP AS number"""
+    _config_bgp_asn(asnum)
 
 #
 # 'interface' group
