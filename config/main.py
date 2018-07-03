@@ -97,7 +97,32 @@ def _config_bgp_asn(asnum):
     else:
         config_db = ConfigDBConnector()
         config_db.connect()
-        config_db.mod_entry('DEVICE_METADATA', "bgp_asn", asnum)
+        config_db.mod_entry("DEVICE_METADATA", "localhost", {"bgp_asn": asnum})
+
+def _config_bgp_neighbor_info(neighbor_addr, name, local_peer_addr, asn,
+        admin_status, rrclient, nhopself, holdtime, keepalive):
+    infodetailmap = {"name":name, "local_addr":local_peer_addr, "asn":asn}
+
+    if admin_status is not None:
+        infodetailmap["admin_status"] = admin_status
+
+    if rrclient is not None:
+        infodetailmap["rrclient"] = rrclient
+
+    if nhopself is not None:
+        infodetailmap["nhopself"] = nhopself
+
+    if holdtime:
+        infodetailmap["holdtime"] = holdtime
+
+    if keepalive:
+        infodetailmap["keepalive"] = keepalive
+
+    click.echo(infodetailmap)
+
+    config_db = ConfigDBConnector()
+    config_db.connect()
+    config_db.mod_entry("BGP_NEIGHBOR", neighbor_addr, infodetailmap)
 
 def _change_hostname(hostname):
     current_hostname = os.uname()[1]
@@ -392,6 +417,35 @@ def bgp():
     """BGP-related configuration tasks"""
     pass
 
+# 'asn' subcommand
+@bgp.command()
+@click.argument('asnum', type=int, required=True)
+def asn(asnum):
+    """Config local BGP AS number"""
+    _config_bgp_asn(asnum)
+
+#
+# 'neighbor' subcommand
+#
+@bgp.command()
+@click.argument('neighbor_addr', type=click.STRING, required=True)
+@click.option('-n', '--name', type=click.STRING, required=True, help="remote as name")
+@click.option('-l', '--local_addr', type=click.STRING, required=True, help="local addr(ip or hostname) for connect peer")
+@click.option('-a', '--asn', type=click.INT, required=True, help="remote as name")
+@click.option('-d', '--admin_status', type=click.STRING, required=False, help="admin status of this neighbor, UP or DOWN")
+@click.option('-r', '--rrclient', type=click.INT, required=False, help="rrclient param")
+@click.option('-o', '--nhopself', type=click.INT, required=False, help="nhopself param")
+@click.option('-t', '--holdtime', type=click.INT, required=False, help="holdtime param")
+@click.option('-k', '--keepalive', type=click.INT, required=False, help="keepalive param")
+def neighbor(neighbor_addr, name, local_addr, asn,
+        admin_status, rrclient, nhopself, holdtime, keepalive):
+    """Config BGP neighbor infomations"""
+    #local act as client.
+    #config bgp neighbor <remote_ip_host> <remote_name> <local_peer_addr> <asn>
+    #    [admin_status] [rrclient] [nhopself] [holdtime] [keepalive]
+    _config_bgp_neighbor_info(neighbor_addr, name, local_addr, asn,
+        admin_status, rrclient, nhopself, holdtime, keepalive)
+
 #
 # 'shutdown' subgroup
 #
@@ -439,12 +493,6 @@ def all(verbose):
 def neighbor(ipaddr_or_hostname, verbose):
     """Start up BGP session by neighbor IP address or hostname"""
     _change_bgp_session_status(ipaddr_or_hostname, 'up', verbose)
-
-@bgp.group()
-@click.argument('asnum', type=int, required=True, help="AS number")
-def asn(asnum):
-    """Config BGP AS number"""
-    _config_bgp_asn(asnum)
 
 #
 # 'interface' group
