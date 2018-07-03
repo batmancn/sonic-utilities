@@ -118,11 +118,26 @@ def _config_bgp_neighbor_info(neighbor_addr, name, local_peer_addr, asn,
     if keepalive:
         infodetailmap["keepalive"] = keepalive
 
-    click.echo(infodetailmap)
+    # click.echo(infodetailmap)
 
     config_db = ConfigDBConnector()
     config_db.connect()
     config_db.mod_entry("BGP_NEIGHBOR", neighbor_addr, infodetailmap)
+
+def _config_bgp_peer_group_info(name, ip_range):
+    name = name.encode('utf8')
+
+    irl = list(ip_range)
+    irl_res = []
+    for ip in irl:
+        irl_res.append(ip.encode('utf8'))
+
+    pg = {"PeerGroup": {"name":name, "ip_range":irl_res}}
+    #click.echo(pg)
+
+    config_db = ConfigDBConnector()
+    config_db.connect()
+    config_db.mod_entry("BGP_NEIGHBOR", "BGP_PEER_RANGE", pg)
 
 def _change_hostname(hostname):
     current_hostname = os.uname()[1]
@@ -441,10 +456,22 @@ def neighbor(neighbor_addr, name, local_addr, asn,
         admin_status, rrclient, nhopself, holdtime, keepalive):
     """Config BGP neighbor infomations"""
     #local act as client.
-    #config bgp neighbor <remote_ip_host> <remote_name> <local_peer_addr> <asn>
-    #    [admin_status] [rrclient] [nhopself] [holdtime] [keepalive]
+    #config bgp neighbor <remote_ip_host> [options]
     _config_bgp_neighbor_info(neighbor_addr, name, local_addr, asn,
         admin_status, rrclient, nhopself, holdtime, keepalive)
+
+#
+# 'peergroup' subcommand
+#
+@bgp.command()
+@click.option('-n', '--name', type=click.STRING, required=True, help="bgp peer group name")
+@click.option('-i', '--ip_range', multiple=True, type=click.STRING, required=True, help="bgp peer group ip range, like [192.168.0.0/27, 10.10.0.0/27]")
+def peergroup(name, ip_range):
+    """Config BGP peer group infomations"""
+    #local act as server.
+    #config bgp peergroup [options]
+    #ip_range is a list, like [192.168.0.0/27, 10.10.0.0/27]
+    _config_bgp_peer_group_info(name, ip_range)
 
 #
 # 'shutdown' subgroup
