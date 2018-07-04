@@ -124,6 +124,11 @@ def _config_bgp_neighbor_info(neighbor_addr, name, local_peer_addr, asn,
     config_db.connect()
     config_db.mod_entry("BGP_NEIGHBOR", neighbor_addr, infodetailmap)
 
+def _config_bgp_neighbor_info_remove(neighbor_addr):
+    config_db = ConfigDBConnector()
+    config_db.connect()
+    config_db.mod_entry("BGP_NEIGHBOR", neighbor_addr, None)
+
 def _config_bgp_peer_group_info(name, ip_range):
     name = name.encode('utf8')
 
@@ -132,12 +137,17 @@ def _config_bgp_peer_group_info(name, ip_range):
     for ip in irl:
         irl_res.append(ip.encode('utf8'))
 
-    pg = {"PeerGroup": {"name":name, "ip_range":irl_res}}
+    pg = {"name":name, "ip_range":irl_res}
     #click.echo(pg)
 
     config_db = ConfigDBConnector()
     config_db.connect()
-    config_db.mod_entry("BGP_NEIGHBOR", "BGP_PEER_RANGE", pg)
+    config_db.mod_entry("BGP_PEER_RANGE", "PeerGroup", pg)
+
+def _config_bgp_peer_group_info_remove():
+    config_db = ConfigDBConnector()
+    config_db.connect()
+    config_db.mod_entry("BGP_PEER_RANGE", "PeerGroup", None)
 
 def _change_hostname(hostname):
     current_hostname = os.uname()[1]
@@ -440,9 +450,18 @@ def asn(asnum):
     _config_bgp_asn(asnum)
 
 #
-# 'neighbor' subcommand
+# 'neighbor' subgroup
 #
-@bgp.command()
+
+@bgp.group()
+def neighbor():
+    """BGP neighbor infomations"""
+    #local act as client.
+    #config bgp neighbor <remote_ip_host> [options]
+    pass
+
+# 'add' subcommand
+@neighbor.command()
 @click.argument('neighbor_addr', type=click.STRING, required=True)
 @click.option('-n', '--name', type=click.STRING, required=True, help="remote as name")
 @click.option('-l', '--local_addr', type=click.STRING, required=True, help="local addr(ip or hostname) for connect peer")
@@ -452,26 +471,47 @@ def asn(asnum):
 @click.option('-o', '--nhopself', type=click.INT, required=False, help="nhopself param")
 @click.option('-t', '--holdtime', type=click.INT, required=False, help="holdtime param")
 @click.option('-k', '--keepalive', type=click.INT, required=False, help="keepalive param")
-def neighbor(neighbor_addr, name, local_addr, asn,
+def add(neighbor_addr, name, local_addr, asn,
         admin_status, rrclient, nhopself, holdtime, keepalive):
-    """Config BGP neighbor infomations"""
-    #local act as client.
-    #config bgp neighbor <remote_ip_host> [options]
+    """Add BGP neighbor infomations"""
     _config_bgp_neighbor_info(neighbor_addr, name, local_addr, asn,
         admin_status, rrclient, nhopself, holdtime, keepalive)
 
+# 'del' subcommand
+@neighbor.command()
+@click.argument('neighbor_addr', type=click.STRING, required=True)
+def remove(neighbor_addr):
+    """Remove BGP neighbor infomations"""
+    _config_bgp_neighbor_info_remove(neighbor_addr)
+
 #
-# 'peergroup' subcommand
+# 'peergroup' subgroup
 #
-@bgp.command()
+
+@bgp.group()
+def peergroup():
+    """BGP peer group infomations"""
+    #local act as server.
+    #config bgp peergroup [options]
+    #ip_range is a list, like [192.168.0.0/27, 10.10.0.0/27]
+    pass
+
+# 'add' subcommand
+@peergroup.command()
 @click.option('-n', '--name', type=click.STRING, required=True, help="bgp peer group name")
 @click.option('-i', '--ip_range', multiple=True, type=click.STRING, required=True, help="bgp peer group ip range, like [192.168.0.0/27, 10.10.0.0/27]")
-def peergroup(name, ip_range):
-    """Config BGP peer group infomations"""
+def add(name, ip_range):
+    """Add BGP peer group infomations"""
     #local act as server.
     #config bgp peergroup [options]
     #ip_range is a list, like [192.168.0.0/27, 10.10.0.0/27]
     _config_bgp_peer_group_info(name, ip_range)
+
+# 'remove' subcommand
+@peergroup.command()
+def remove():
+    """Remove BGP peer group infomations"""
+    _config_bgp_peer_group_info_remove()
 
 #
 # 'shutdown' subgroup
